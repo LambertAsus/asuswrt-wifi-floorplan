@@ -1,0 +1,7 @@
+numpy
+matplotlib
+pandas
+Flask
+flask-cors
+opencv-python-headless
+scikit-image
