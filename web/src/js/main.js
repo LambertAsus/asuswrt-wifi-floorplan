@@ -5,12 +5,83 @@ import {LineGeometry} from "three/examples/jsm/lines/LineGeometry";
 import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
 
 
+let config = {
+    scale: 1,
+    signal_frequency: '2.4',
+}
+
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new Tooltip(tooltipTriggerEl))
 
 const routerDiv = document.getElementById('router');
 const wallDiv = document.getElementById('wall');
 const eraserDiv = document.getElementById('eraser');
+
+const sendButton = document.getElementById('sendButton');
+
+const frequencyButtons = document.querySelectorAll('input[name="freq"]');
+
+frequencyButtons.forEach(button => {
+    button.addEventListener('change', () => {
+        const activeFrequency = document.querySelector('input[name="freq"]:checked').value;
+        config.signal_frequency = activeFrequency;
+        console.log('Active Frequency:', activeFrequency);
+    });
+});
+
+
+const scaleDiv = document.getElementById('scale');
+const scalePanel = document.getElementById('scalePanel');
+const scaleInput = document.getElementById('scaleInput');
+const scaleRedrawButton = document.getElementById('scaleRedrawButton');
+const scaleSaveButton = document.getElementById('scaleSaveButton');
+const scaleEditButton = document.getElementById('scaleEditButton');
+scaleEditButton.querySelector('span').innerText = `1m : 100px`;
+scaleRedrawButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    scalePanel.style.display = 'none';
+    isDrawing = false;
+    scaleStartPoint = null;
+    scaleLine = null;
+    scaleLines.forEach(line => scene.remove(line));
+    config.scale = parseFloat(scaleInput.value);
+    console.log('config.scale', config.scale)
+});
+scaleInput.addEventListener('input', (e) => {
+    let value = e.target.value;
+    let validValue = value.match(/^\d*\.?\d{0,2}/);
+    e.target.value = validValue ? validValue[0] : '';
+    if (e.target.value.trim() !== '') {
+        scaleSaveButton.classList.remove('disabled');
+    } else {
+        scaleSaveButton.classList.add('disabled');
+    }
+});
+scaleSaveButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    scalePanel.style.display = 'none';
+    isDrawing = false;
+    scaleStartPoint = null;
+    scaleLine = null;
+    scaleLines.forEach(line => {
+        const positions = line.geometry.attributes.instanceStart.array;
+        const start = new THREE.Vector3(positions[0], positions[1], positions[2]);
+        const end = new THREE.Vector3(positions[positions.length - 3], positions[positions.length - 2], positions[positions.length - 1]);
+        const lineLength = start.distanceTo(end);
+        const scaleInputValue = parseFloat(scaleInput.value);
+        const scale = (lineLength / scaleInputValue).toFixed(2);
+        scene.remove(line)
+        scaleEditButton.querySelector('span').innerText = `1m : ${scale}px`;
+        config.scale = parseFloat(scale);
+        console.log('config.scale', config.scale)
+    });
+    scaleLines.length = 0;
+});
+scaleEditButton.addEventListener('click', (e) => {
+    scaleDiv.classList.add('active');
+});
+
+
 document.querySelectorAll('.nav-link').forEach(nav => {
     nav.addEventListener('click', function (e) {
         e.preventDefault();
@@ -70,7 +141,9 @@ const selectBackground = new popup(
                         </div>
                     </div>`
     });
+
 selectBackground.show();
+
 document.getElementById('logo').addEventListener('click', () => {
     selectBackground.show();
 });
@@ -164,8 +237,21 @@ let isDrawing = false;
 let drawingLine = null;
 const lines = [];
 
+// scale
+let scaleLine = null;
+const scaleLines = [];
+let scaleStartPoint = null;
+
 const erasers = [];
 let erasing = false;
+
+function checkRouterExist() {
+    if(circles.length === 0) {
+        sendButton.classList.add('disabled');
+    }else{
+        sendButton.classList.remove('disabled');
+    }
+}
 
 function removeLineEndpoint() {
     for (const circle of hoveredLineEndpoints) {
@@ -270,6 +356,44 @@ function onDocumentMouseDown(event) {
                 isDrawing = false;
                 selectedLine = null;
             }
+        } else if (scaleDiv.classList.contains('active')) {
+            if (!isDrawing && !scaleStartPoint) {
+                isDrawing = true;
+                scaleStartPoint = point;
+                const lineGeometry = new LineGeometry();
+                lineGeometry.setPositions([scaleStartPoint.x, scaleStartPoint.y, 1, scaleStartPoint.x, scaleStartPoint.y, 1]);
+                const lineMaterial = new LineMaterial({
+                    color: 0x000077,
+                    linewidth: lineWidth,
+                    dashed: false,
+                    opacity: 1.0,
+                    resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
+                });
+                scaleLine = new Line2(lineGeometry, lineMaterial);
+                scene.add(scaleLine);
+                scaleLines.push(scaleLine);
+            } else {
+                // 第二次点击，完成绘制
+                if (scalePanel.style.display !== 'block') {
+                    const scalePanelWidth = parseFloat(scalePanel.style.width);
+                    const scalePanelHeight = parseFloat(scalePanel.style.height);
+                    let scalePanelPositionX = `${event.clientX + 20}px`;
+                    let scalePanelPositionY = `${event.clientY}px`;
+                    if (event.clientX + 20 + scalePanelWidth > window.innerWidth) {
+                        scalePanelPositionX = `${event.clientX - 20 - scalePanelWidth}px`;
+                    }
+                    if (event.clientY + 20 + scalePanelHeight > window.innerHeight) {
+                        scalePanelPositionY = `${event.clientY - 20 - scalePanelHeight}px`;
+                    }
+                    scaleStartPoint = null;
+                    scaleLine = null;
+                    // isDrawing = false;
+                    // selectedLine = null;
+                    scalePanel.style.display = 'block';
+                    scalePanel.style.left = scalePanelPositionX;
+                    scalePanel.style.top = scalePanelPositionY;
+                }
+            }
         } else if (eraserDiv.classList.contains('active')) {
             erasing = true;
         } else {
@@ -310,6 +434,7 @@ function onDocumentMouseDown(event) {
             // }
         }
     }
+    checkRouterExist();
 }
 
 function updateHover(point, cursorStyle = 'auto') {
@@ -356,7 +481,7 @@ function updateHover(point, cursorStyle = 'auto') {
         hoveredLine = newHoveredLine;
     }
 
-    if (wallDiv.classList.contains('active')) {
+    if (wallDiv.classList.contains('active') || (scaleDiv.classList.contains('active') && scalePanel.style.display !== 'block')) {
         cursorStyle = 'crosshair';
     }
 
@@ -423,6 +548,11 @@ function onDocumentMouseMove(event) {
         if (isDrawing && startPoint && drawingLine) {
             drawingLine.geometry.setPositions([startPoint.x, startPoint.y, 0, point.x, point.y, 0]);
             drawingLine.computeLineDistances();
+        }
+    } else if (scaleDiv.classList.contains('active')) {
+        if (isDrawing && scaleStartPoint && scaleLine) {
+            scaleLine.geometry.setPositions([scaleStartPoint.x, scaleStartPoint.y, 0, point.x, point.y, 0]);
+            scaleLine.computeLineDistances();
         }
     } else if (eraserDiv.classList.contains('active')) {
         if (erasing) {
@@ -500,7 +630,7 @@ function onDocumentRightClick(event) {
             circles.splice(index, 1);
         }
     }
-
+    checkRouterExist();
 }
 
 function onKeyDown(event) {
@@ -511,6 +641,12 @@ function onKeyDown(event) {
             startPoint = null;
             if (drawingLine) {
                 scene.remove(drawingLine);
+            }
+        } else if (isDrawing && scaleStartPoint) {
+            isDrawing = false;
+            scaleStartPoint = null;
+            if (scaleLine) {
+                scene.remove(scaleLine);
             }
         } else {
             document.querySelectorAll('.nav-link').forEach(nav => {
@@ -657,12 +793,24 @@ async function sendData() {
 
     const data = {
         image: dataURL,
-        objects: circleData
+        objects: circleData,
+        scale: config.scale,
+        signal_frequency: config.signal_frequency
     };
 
     if (1) {
         loader.show();
-        fetch('api/', {
+
+        let url = 'api/';
+        if (process.env.NODE_ENV === 'production') {
+            console.log('We are in production mode');
+
+        } else if (process.env.NODE_ENV === 'development') {
+            console.log('We are in development mode');
+            url = 'http://127.0.0.1:8080/';
+        }
+
+        fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -712,7 +860,7 @@ async function sendData() {
     }
 }
 
-document.getElementById('sendButton').addEventListener('click', sendData);
+sendButton.addEventListener('click', sendData);
 document.getElementById('clearButton').addEventListener('click', () => {
     if (overlayMesh) {
         scene.remove(overlayMesh);

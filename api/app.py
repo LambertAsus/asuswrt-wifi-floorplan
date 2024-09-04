@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import pandas as pd
 from wifi_heatmap.floorplan import FloorPlan
 from flask import Flask, request, redirect, url_for, flash, jsonify
@@ -30,6 +31,11 @@ def upload_file():
         if not data or not objects:
             return jsonify({"error": "Image data or objects missing"}), 400
 
+        scale = request.json.get('scale', 100)
+        signal_freq = request.json.get('signal_frequency', '2.4')
+
+        print(request.json)
+
         header, base64_str = data.split(",", 1)
 
         image_data = base64.b64decode(base64_str)
@@ -52,7 +58,7 @@ def upload_file():
 
 
 
-        result = process_files(file_path, routers)
+        result = process_files(file_path, routers, scale, signal_freq)
 
         # 刪除上傳的檔案
         # os.remove(file_path)
@@ -61,33 +67,41 @@ def upload_file():
 
     return '''
     <!doctype html>
-    <title>Upload MP3 Files</title>
-    <h1>Upload two MP3 files</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
+    <title>Floorplan API</title>
+    <h1>Floorplan API</h1>
     '''
 
-
-def process_files(file, routers):
+def process_files(file, routers, scale=100, signal_freq='2.4'):
     IMAGE_FILE = file
 
-    # MODEL = 'MULTIWALL'
-    MODEL = 'ONE_SLOPE'
+    MODEL = 'MULTIWALL'
+    # MODEL = 'ONE_SLOPE'
 
     ## Scaling
     IMAGE_SCALING = 30  # Per-cent (%)
-    SCALE = 0.01  # Value in meter for each pixel
+    SCALE = 1 / scale / IMAGE_SCALING  # Value in meter for each pixel
 
     ## TX Signal
     SIGNAL_FREQ = 2.4e9
+
+    if signal_freq=='2.4':
+        SIGNAL_FREQ = 2.4e9
+    elif signal_freq=='5':
+        SIGNAL_FREQ = 5e9
+    elif signal_freq=='6':
+        SIGNAL_FREQ = 6e9
+    elif signal_freq=='60':
+        SIGNAL_FREQ = 60e9
+
     TX_POWER = 0  # dBm
 
     ## Model
     FREE_SPACE_PATH_LOSS_1M = 20 * np.log10(SIGNAL_FREQ) + 20 * np.log10((4.0 * np.pi) / 299792458)  # Aprox 40dB
+    print(FREE_SPACE_PATH_LOSS_1M)
+    # FREE_SPACE_PATH_LOSS_1M = 20 * np.log10(SIGNAL_FREQ) - 147.55  # Aprox 40dB
+
     PATH_LOSS_EXP = 2
-    WALL_LOSS = 3.4  # dB
+    WALL_LOSS = 15  # dB
     # WALL_LOSS_THICK = 6.9 #dB
 
     ## Morphological Transformation
@@ -117,7 +131,7 @@ def process_files(file, routers):
         return (ref_loss + 10 * exponent * np.log10(dist)) if dist > 1 else ref_loss
 
     def path_loss_multiwall(src_x, src_y, dst_x, dst_y, wall_count, ref_loss=FREE_SPACE_PATH_LOSS_1M,
-                            exponent=PATH_LOSS_EXP, wall_loss=WALL_LOSS, freq=2.4e9):
+                            exponent=PATH_LOSS_EXP, wall_loss=WALL_LOSS):
         dist = distance2d(src_x, src_y, dst_x, dst_y)
         if dist == 0:
             return ref_loss
@@ -178,19 +192,21 @@ def process_files(file, routers):
 
     fig, ax = plt.subplots(figsize=(18, 12))  # 原始尺寸的 3 倍
 
-    colors = ['#FFFFFF', '#FEFAFA', '#FBF3F4', '#FAECEC', '#E2898C', '#D98386', '#FACB7B', '#FCD679', '#FDDE77',
-              '#FEE576', '#C1DF80', '#B2DA85', '#9ED38D', '#8ECD88']
-    norm = plt.Normalize(df['rssi'].min(), df['rssi'].max())
+    colors = ['#FFFFFF', '#FEFAFA', '#FBF3F4', '#FAECEC', '#E2898C', '#D98386', '#FACB7B', '#FCD679', '#FDDE77', '#FEE576', '#C1DF80', '#B2DA85', '#9ED38D', '#8ECD88']
+    bounds = [-1000, -85, -83, -81, -79, -76, -75, -72, -70, -65, -62, -58, -52,-50, 0]
     cmap = plt.cm.colors.ListedColormap(colors)
+    norm = mcolors.BoundaryNorm(bounds, cmap.N)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     # 绘制热图
-    cax = ax.imshow(rssi_matrix, cmap=cmap, interpolation='nearest', aspect='equal',
-                    vmin=df['rssi'].min(), vmax=df['rssi'].max())
+    cax = ax.imshow(rssi_matrix, cmap=cmap, norm=norm, interpolation='nearest', aspect='equal')
 
     # 如果 walls 为 1，则用黑色显示墙壁区域
     walls_mask = df['walls'] == 1
     ax.scatter(df[walls_mask]['x'], df[walls_mask]['y'], color='black', marker='s')
+
+    # print(df)
+    # df.to_excel('output.xlsx', index=False)
 
     # 绘制蓝色的点
     x_coords = [item["x"] for item in origins]
@@ -198,7 +214,10 @@ def process_files(file, routers):
     ax.scatter(x_coords, y_coords, color='blue', marker='o', s=100)  # s=100 是点的大小
 
     # 添加颜色条
-    # fig.colorbar(cax, ax=ax, label='RSSI')
+    # cbar = fig.colorbar(cax, ax=ax, label='RSSI')
+    # ticks = np.arange(-1000, 1, 5)  # 每隔 5 顯示一個刻度
+    # cbar.set_ticks(ticks)
+    # cbar.set_ticklabels([f'{tick}' for tick in ticks])
 
     # 翻转 y 轴
     # plt.gca().invert_yaxis()
@@ -249,4 +268,7 @@ if __name__ == '__main__':
     # 確保上傳資料夾存在
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-    app.run(host='0.0.0.0', port=80)
+
+    PORT = os.environ.get('PORT', 80)
+
+    app.run(host='0.0.0.0', port=PORT)

@@ -7,15 +7,15 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<!--    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"-->
-<!--            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"-->
-<!--            crossorigin="anonymous"></script>-->
-<!--    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/Line2.js"></script>-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineGeometry.js"></script>-->
+    <!--    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"-->
+    <!--            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"-->
+    <!--            crossorigin="anonymous"></script>-->
+    <!--    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>-->
+    <!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>-->
+    <!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>-->
+    <!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/Line2.js"></script>-->
+    <!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>-->
+    <!--    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineGeometry.js"></script>-->
     <style>
         body {
             margin: 0;
@@ -38,7 +38,7 @@
             position: absolute;
             left: 0;
             bottom: 0;
-            height: 60px;
+            height: 3.5rem;
             width: 100%;
             background: #f8f9fa;
             border-top: 1px solid #e1e1e1;
@@ -76,6 +76,53 @@
             color: #FFFFFF !important;
         }
 
+        .overlay-container {
+            flex-flow: row;
+            -webkit-box-pack: start;
+            place-content: stretch flex-start;
+            z-index: 10;
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            padding: 1rem 1rem 4.5rem 5.5rem;
+            gap: 8px;
+            grid-template: 'left center right' 100% / 1fr 0px 1fr;
+            pointer-events: none;
+        }
+
+        .overlay-container .left-tools {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas:
+        "top"
+        "center"
+        "bottom";
+            height: 100%;
+            gap: 16px;
+            grid-area: left;
+            justify-items: flex-start;
+        }
+
+        .overlay-container .right-tools {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas:
+        "top"
+        "center"
+        "bottom";
+            height: 100%;
+            gap: 16px;
+            grid-area: right;
+            justify-items: flex-end;
+        }
+
+        .overlay-container .pointer-event-auto {
+            pointer-events: auto;
+        }
+
     </style>
 </head>
 <body>
@@ -85,35 +132,97 @@
     </div>
     <ul class="nav nav-pills nav-flush flex-column mb-auto text-center">
         <li>
-            <div id="wall" data-size="50" class="nav-link py-3 border-bottom cursor-point rounded-0"
+            <div id="wall" class="nav-link py-3 border-bottom cursor-point rounded-0"
                  data-bs-toggle="tooltip" data-bs-placement="right" data-bs-original-title="Draw Wall" role="button">
                 <i class="bi bi-bricks text-black"></i>
             </div>
         </li>
         <li>
-            <div id="eraser" data-size="50" class="nav-link py-3 border-bottom cursor-point rounded-0"
+            <div id="eraser" class="nav-link py-3 border-bottom cursor-point rounded-0"
                  data-bs-toggle="tooltip" data-bs-placement="right" data-bs-original-title="Eraser" role="button">
                 <i class="bi bi-eraser-fill text-black"></i>
             </div>
         </li>
         <li>
-            <div id="router" data-size="50" class="router nav-link py-3 border-bottom cursor-point rounded-0"
+            <div id="router" class="router nav-link py-3 border-bottom cursor-point rounded-0"
                  data-bs-toggle="tooltip" data-bs-placement="right" data-bs-original-title="RT-BE92U" role="button">
                 <img src="img/RT-BE92U.png" width="30">
             </div>
         </li>
         <li>
-            <div class="py-3 border-bottom cursor-point rounded-0" id="clearButton" data-bs-toggle="tooltip"
-                 data-bs-placement="right" data-bs-original-title="Clear Result" role="button">
+            <div id="clearButton" class="py-3 border-bottom cursor-point rounded-0" data-bs-toggle="tooltip"
+                 data-bs-placement="right" data-bs-original-title="Remove Result" role="button">
                 <i class="bi bi-trash text-black"></i>
+            </div>
+        </li>
+        <li>
+            <div id="scale" class="nav-link py-3 border-bottom cursor-point rounded-0" data-bs-toggle="tooltip"
+                 data-bs-placement="right" data-bs-original-title="Scale" role="button">
+                <i class="bi bi-rulers text-black"></i>
             </div>
         </li>
     </ul>
 </div>
 <canvas id="myCanvas"></canvas>
+<div class="overlay-container">
+    <section class="left-tools">
+        <div area="top">
+        </div>
+        <div area="center">
+        </div>
+        <div area="bottom">
+        </div>
+    </section>
+    <section class="right-tools">
+        <div area="top">
+            <div class="shadow-sm bg-body p-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-light fs-6 text-secondary" data-label="WiFi">WiFi</span>
+                    <div class="btn-group pointer-event-auto" role="group" aria-label="WiFi Frequency">
+                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn1" autocomplete="off" value="2.4" checked>
+                        <label class="btn btn-outline-primary" for="signalFrequencyBtn1">2.4GHz</label>
+                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn2" autocomplete="off" value="5">
+                        <label class="btn btn-outline-primary" for="signalFrequencyBtn2">5GHz</label>
+                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn3" autocomplete="off" value="6">
+                        <label class="btn btn-outline-primary" for="signalFrequencyBtn3">6GHz</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div area="center">
+        </div>
+        <div area="bottom">
+            <div class="shadow-sm bg-body p-2">
+                <div class="d-flex align-items-center gap-1">
+                    <span class="fw-light fs-6 text-secondary" data-label="Scale">Scale</span>
+                    <button id="scaleEditButton" class="btn btn-sm p-0 pointer-event-auto">
+                        <span class="fs-6 text-primary">1m : 100px</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+<div id="scalePanel" class="position-absolute shadow p-3 mb-5 bg-body rounded"
+     style="width: 230px;height: 150px; display: none;">
+    <div class="d-flex flex-column justify-content-between h-100 gap-1">
+        <div class="d-flex flex-column">
+            <label for="scale" class="form-label fw-bold">Length</label>
+            <div class="input-group">
+                <input id="scaleInput" type="text" class="form-control" autocomplete="off">
+                <div class="input-group-text">m / ft</div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-1">
+            <button id="scaleRedrawButton" class="btn">Redraw</button>
+            <button id="scaleSaveButton" class="btn btn-primary disabled">Save</button>
+        </div>
+    </div>
+</div>
+
 <footer>
     <div class="container-fluid">
-        <button class="btn btn-success float-end" id="sendButton">Send</button>
+        <button class="btn btn-success float-end disabled" id="sendButton">Send</button>
     </div>
 </footer>
 </body>
