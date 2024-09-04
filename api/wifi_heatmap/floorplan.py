@@ -1,121 +1,88 @@
 import cv2
 import numpy as np
-from skimage import draw
+from skimage.draw import line
 
 class FloorPlan:
     
     def __init__(self, path='', scale=100):
         self.image_path = path
         self.image = None
-        self.floorplan = None
         self.x_size = 0
         self.y_size = 0
         self.scale = scale
         self.accessPoints = []
         if path:
             self.loadFromFile(path, scale)
-        
+
     def rescaleImg(self, scale):
         if scale == 100:
             return
-        width = int((self.image.shape[1] * scale) / 100)
-        height = int((self.image.shape[0] * scale) / 100)
-        dim = (width, height)
-        #print(f'Rescaling image with factor of {scale} from {self.image.shape} to {dim}')
-        self.image = cv2.resize(self.image, dim, interpolation = cv2.INTER_AREA)
-        self.y_size, self.x_size, _ = self.image.shape
+        height, width = self.image.shape[:2]
+        dim = (int(width * scale / 100), int(height * scale / 100))
+        self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_AREA)
+        self.y_size, self.x_size = self.image.shape[:2]
 
     def loadFromFile(self, image_path, scale=100):
         self.image_path = image_path
-        try:
-            self.image = cv2.imread(image_path)
-            self.y_size, self.x_size, _ = self.image.shape
+        self.image = cv2.imread(image_path)
+        if self.image is not None:
             self.rescaleImg(scale)
-        except:
-            raise
-    
-    def loadFromArray(self, data : np.ndarray, scale=100):
+
+    def loadFromArray(self, data: np.ndarray, scale=100):
         self.image = data
-        self.y_size, self.x_size = self.image.shape
+        self.y_size, self.x_size = self.image.shape[:2]
         self.rescaleImg(scale)
 
-
-    def getWallMap(self, morph=True, kernel = (5, 5)):
+    def getWallMap(self, morph=True, kernel_size=(5, 5)):
         self.removeAccessPoints()
-        #Convert to grayscale
-        self.gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-        
-        #Threshold image to get black and white binary data
-        (self.thresh, self.im_bw) = cv2.threshold(self.gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-        
-        morph_img = self.im_bw
-        #Morphological Transform (remove small details)
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        _, im_bw = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+
         if morph:
-            self.kernel = np.ones(kernel, np.uint8)
-            self.dilation = cv2.dilate(self.im_bw, self.kernel)
-            self.erosion = cv2.erode(self.dilation, self.kernel, iterations=1)
-            morph_img = self.erosion
-                
-        #Use direct logic (Wall = 255, floor = 0)
-        self.invert = np.invert(morph_img)
-        
-        #Convert to binary
-        self.binary = self.invert/255
-        
-        self.wallmap = self.binary
-        
-        return self.wallmap
-    
+            kernel = np.ones(kernel_size, np.uint8)
+            morph_img = cv2.morphologyEx(im_bw, cv2.MORPH_CLOSE, kernel)
+        else:
+            morph_img = im_bw
+
+        wallmap = np.invert(morph_img) / 255
+        self.wallmap = wallmap
+        return wallmap
+
     def countWalls(self, src_x, src_y, dst_x, dst_y, debug=False):
-        #Get line points
-        line_r, line_c = draw.line(int(src_y), int(src_x), int(dst_y), int(dst_x))
-    
-        num_pts = len(line_r)
-        walls = 0
-        same_wall = False
-        if debug: 
-            print(f'From [{src_x},{src_y}] to [{dst_x},{dst_y}]')
-        for idx in range(num_pts):
-            if self.wallmap[line_r[idx],line_c[idx]]:
-                #Found a wall
-                if not same_wall:
-                    #Check if we are not inside the same wall
-                    walls += 1
-                    if debug: 
-                        print(f'Wall: [{line_r[idx]},{line_c[idx]}]')
-                    same_wall = True
-            elif same_wall == True:
-                #Left the wall, can count again
-                same_wall = False
-        if debug: 
+        line_r, line_c = line(int(src_y), int(src_x), int(dst_y), int(dst_x))
+        if len(line_r) == 0 or len(line_c) == 0:
+            return 0
+
+        wall_points = self.wallmap[line_r, line_c]
+        kernel = np.array([1, -1])
+        walls = np.sum(np.convolve(wall_points.astype(int), kernel, mode='valid') > 0)
+
+        if debug:
             print(f'Total walls: {walls}')
+
         return walls
-    
+
     def findAccessPoints(self, color='blue'):
-        lower_blue = np.array([101,50,38])
-        upper_blue = np.array([130,255,255])
-        
+        lower_blue = np.array([101, 50, 38])
+        upper_blue = np.array([130, 255, 255])
+
         hsv = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        res = cv2.bitwise_and(self.image, self.image, mask= mask)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        contours, hier = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+        self.accessPoints = []
         for contour in contours:
-            x,y,w,h = cv2.boundingRect(contour)
-            #cv2.rectangle(img, (x,y), (x+w, y+h), (0,255,0), 3)
+            x, y, w, h = cv2.boundingRect(contour)
             M = cv2.moments(contour)
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
-            self.accessPoints.append((cx,cy,x,y,w,h))
+            if M['m00'] != 0:
+                cx = int(M['m10'] / M['m00'])
+                cy = int(M['m01'] / M['m00'])
+                self.accessPoints.append((cx, cy, x, y, w, h))
 
         return self.accessPoints
 
     def removeAccessPoints(self):
-        if len(self.accessPoints) > 0:
-            return
-
-        #Paint AP locations white
-        self.findAccessPoints()
-        for _,_,x,y,w,h in self.accessPoints:
-            cv2.rectangle(self.image, (x,y), (x+w, y+h), (255,255,255), -1) 
+        if not self.accessPoints:
+            self.findAccessPoints()
+            for _, _, x, y, w, h in self.accessPoints:
+                cv2.rectangle(self.image, (x, y), (x + w, y + h), (255, 255, 255), -1)
