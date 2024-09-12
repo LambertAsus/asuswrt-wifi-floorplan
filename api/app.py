@@ -47,7 +47,8 @@ def upload_file():
         for obj in objects:
             x = obj.get('x')
             y = obj.get('y')
-            routers.append({'x': x * 0.3, 'y': y * 0.3})
+            tx_power = obj.get('router').get('tx')
+            routers.append({'x': x * 0.3, 'y': y * 0.3, 'tx_power': tx_power})
             # Do something with x and y, like logging or further processing
             print(f"Object found at x: {x}, y: {y}")
 
@@ -122,7 +123,7 @@ def process_files(file, routers, scale=100, signal_freq='2.4'):
             return ref_loss
         return ref_loss + 10 * exponent * np.log10(dist) + wall_count * wall_loss
 
-    def create_dataframe(origin_x, origin_y):
+    def create_dataframe(origin_x, origin_y, tx_power):
         x_range = np.arange(floorplan.x_size)
         y_range = np.arange(floorplan.y_size)
 
@@ -137,7 +138,7 @@ def process_files(file, routers, scale=100, signal_freq='2.4'):
         loss_grid = np.array([path_loss_multiwall(d, w) for d, w in zip(dist_grid.flatten(), wall_counts.flatten())])
         loss_grid = loss_grid.reshape(dist_grid.shape)
 
-        rssi_grid = TX_POWER - loss_grid
+        rssi_grid = tx_power - loss_grid
 
         wall_grid = np.array([[map[y, x] for x in x_range] for y in y_range])
 
@@ -156,7 +157,7 @@ def process_files(file, routers, scale=100, signal_freq='2.4'):
     # plt.imshow(map)
     # plt.savefig('uploads/map.png')
 
-    dataframes = [create_dataframe(origin['x'], origin['y']) for origin in routers]
+    dataframes = [create_dataframe(origin['x'], origin['y'], origin['tx_power']) for origin in routers]
     merged_df = pd.concat(dataframes)
     result_df = merged_df.groupby(['x', 'y'], as_index=False).agg({
         'dist': 'first',  # 可以選擇保留其他列的值，如果需要

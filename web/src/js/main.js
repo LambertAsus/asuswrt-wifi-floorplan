@@ -4,16 +4,55 @@ import {Line2} from "three/examples/jsm/lines/Line2";
 import {LineGeometry} from "three/examples/jsm/lines/LineGeometry";
 import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
 
-
-let config = {
+const config = {
     scale: 1,
     signal_frequency: '2.4',
 }
 
+const routerList = [
+    {
+        name: 'RT-BE92U',
+        img: 'img/RT-BE92U.png',
+        tx: 0,
+        range: '25 m²',
+        wifi_version: 'WiFi7',
+    },
+    {
+        name: 'BM68',
+        img: 'img/ExpertWiFi_BM68.png',
+        tx: 10,
+        range: '50 m²',
+        wifi_version: 'WiFi6',
+    }
+]
+
+const routerDiv = document.getElementById('routers');
+routerList.forEach(router => {
+    const li = document.createElement('li');
+    li.classList = 'd-flex justify-content-between align-items-start list-group-item list-group-item-action';
+    li.setAttribute('data-router-name', router.name);
+    li.innerHTML = `<div class="me-auto d-flex align-items-center gap-1">
+                        <img src="${router.img}" alt="${router.name}" width="30">
+                        <div>
+                            <div class="fw-bold">${router.name}</div>
+                            <small>${router.range}</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-secondary rounded-pill">${router.wifi_version}</span>`;
+    routerDiv.appendChild(li);
+});
+
+const offcanvasScrolling = document.getElementById('offcanvasScrolling')
+offcanvasScrolling.addEventListener('hidden.bs.offcanvas', function () {
+    routerDiv.querySelectorAll('li').forEach(li => {
+        li.classList.remove('active');
+    });
+})
+
+
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new Tooltip(tooltipTriggerEl))
 
-const routerDiv = document.getElementById('router');
 const wallDiv = document.getElementById('wall');
 const eraserDiv = document.getElementById('eraser');
 
@@ -81,6 +120,21 @@ scaleEditButton.addEventListener('click', (e) => {
     scaleDiv.classList.add('active');
 });
 
+routerDiv.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        const targetElement = e.currentTarget;
+        if (targetElement.classList.contains('active')) {
+            targetElement.classList.remove('active');
+        } else {
+            routerDiv.querySelectorAll('li').forEach(li => {
+                li.classList.remove('active');
+            });
+            targetElement.classList.add('active');
+        }
+    });
+});
 
 document.querySelectorAll('.nav-link').forEach(nav => {
     nav.addEventListener('click', function (e) {
@@ -142,7 +196,7 @@ const selectBackground = new popup(
                     </div>`
     });
 
-selectBackground.show();
+// selectBackground.show();
 
 document.getElementById('logo').addEventListener('click', () => {
     selectBackground.show();
@@ -246,9 +300,9 @@ const erasers = [];
 let erasing = false;
 
 function checkRouterExist() {
-    if(circles.length === 0) {
+    if (circles.length === 0) {
         sendButton.classList.add('disabled');
-    }else{
+    } else {
         sendButton.classList.remove('disabled');
     }
 }
@@ -297,7 +351,10 @@ function onDocumentMouseDown(event) {
     if (intersects.length > 0) {
         // 如果点击到了圆形，选择该圆形
         selectedCircle = intersects[0].object;
-    } else if (routerDiv.classList.contains('active')) {
+    } else if (routerDiv.querySelector('li.active')) {
+        const selectedRouterName = routerDiv.querySelector('li.active').getAttribute('data-router-name');
+        const router = routerList.find(router => router.name === selectedRouterName);
+
         const hoverCircleGeometry = new THREE.CircleGeometry(22, 32);
         const hoverCircleMaterial = new THREE.MeshBasicMaterial({color: 0x6ea8fe});
         const hoverCircle = new THREE.Mesh(hoverCircleGeometry, hoverCircleMaterial);
@@ -314,7 +371,7 @@ function onDocumentMouseDown(event) {
 
         // 載入SVG圖片
         const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('img/RT-BE92U.png', function (texture) {
+        textureLoader.load(router.img, function (texture) {
             const svgMaterial = new THREE.MeshBasicMaterial({map: texture, transparent: true});
             const svgGeometry = new THREE.PlaneGeometry(20, 20); // 可以調整尺寸
             const svgMesh = new THREE.Mesh(svgGeometry, svgMaterial);
@@ -327,6 +384,8 @@ function onDocumentMouseDown(event) {
             -(event.clientY - window.innerHeight / 2) / camera.zoom,
             circleZ
         );
+
+        circle.router = router;
 
         circles.push(circle);
         scene.add(circle);
@@ -785,11 +844,12 @@ async function sendData() {
         x: (circle.position.x + backgroundMesh.geometry.parameters.width / 2)
             * (backgroundMesh.imgWidth / backgroundMesh.geometry.parameters.width),
         y: (-circle.position.y + backgroundMesh.geometry.parameters.height / 2)
-            * (backgroundMesh.imgHeight / backgroundMesh.geometry.parameters.height)
+            * (backgroundMesh.imgHeight / backgroundMesh.geometry.parameters.height),
+        router: circle.router,
     }));
 
     console.log('circles', circles[0].position.x, circles[0].position.y)
-    console.log('circleData', circleData[0].x, circleData[0].y)
+    console.log('circleData', circleData[0].x, circleData[0].y, circleData[0].router)
 
     const data = {
         image: dataURL,

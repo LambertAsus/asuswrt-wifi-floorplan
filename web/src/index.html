@@ -144,11 +144,24 @@
             </div>
         </li>
         <li>
-            <div id="router" class="router nav-link py-3 border-bottom cursor-point rounded-0"
-                 data-bs-toggle="tooltip" data-bs-placement="right" data-bs-original-title="RT-BE92U" role="button">
-                <img src="img/RT-BE92U.png" width="30">
+            <div class="router py-3 border-bottom cursor-point rounded-0"
+                 data-bs-toggle="offcanvas" data-bs-target="#offcanvasScrolling" aria-controls="offcanvasRightScrolling"
+                 data-bs-placement="right" data-bs-original-title="Routers" role="button">
+                <i class="bi bi-router text-black"></i>
             </div>
         </li>
+        <!--        <li>-->
+        <!--            <div class="router nav-link py-3 border-bottom cursor-point rounded-0"-->
+        <!--                 data-bs-toggle="tooltip" data-bs-placement="right" data-bs-original-title="RT-BE92U" role="button">-->
+        <!--                <img src="img/RT-BE92U.png" width="30">-->
+        <!--            </div>-->
+        <!--        </li>-->
+        <!--        <li>-->
+        <!--            <div class="router nav-link py-3 border-bottom cursor-point rounded-0"-->
+        <!--                 data-bs-toggle="tooltip" data-bs-placement="right" data-bs-original-title="EBM68" role="button">-->
+        <!--                <img src="img/ExpertWiFi_BM68.png" width="30">-->
+        <!--            </div>-->
+        <!--        </li>-->
         <li>
             <div id="clearButton" class="py-3 border-bottom cursor-point rounded-0" data-bs-toggle="tooltip"
                  data-bs-placement="right" data-bs-original-title="Remove Result" role="button">
@@ -179,11 +192,14 @@
                 <div class="d-flex align-items-center gap-2">
                     <span class="fw-light fs-6 text-secondary" data-label="WiFi">WiFi</span>
                     <div class="btn-group pointer-event-auto" role="group" aria-label="WiFi Frequency">
-                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn1" autocomplete="off" value="2.4" checked>
+                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn1" autocomplete="off"
+                               value="2.4" checked>
                         <label class="btn btn-outline-primary" for="signalFrequencyBtn1">2.4GHz</label>
-                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn2" autocomplete="off" value="5">
+                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn2" autocomplete="off"
+                               value="5">
                         <label class="btn btn-outline-primary" for="signalFrequencyBtn2">5GHz</label>
-                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn3" autocomplete="off" value="6">
+                        <input type="radio" class="btn-check" name="freq" id="signalFrequencyBtn3" autocomplete="off"
+                               value="6">
                         <label class="btn btn-outline-primary" for="signalFrequencyBtn3">6GHz</label>
                     </div>
                 </div>
@@ -202,6 +218,16 @@
             </div>
         </div>
     </section>
+</div>
+<div class="offcanvas offcanvas-end" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+     id="offcanvasScrolling" aria-labelledby="offcanvasScrollingLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasScrollingLabel">Devices</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <ol id="routers" class="list-group"></ol>
+    </div>
 </div>
 <div id="scalePanel" class="position-absolute shadow p-3 mb-5 bg-body rounded"
      style="width: 230px;height: 150px; display: none;">
