@@ -196,7 +196,7 @@ const selectBackground = new popup(
                     </div>`
     });
 
-// selectBackground.show();
+selectBackground.show();
 
 document.getElementById('logo').addEventListener('click', () => {
     selectBackground.show();
