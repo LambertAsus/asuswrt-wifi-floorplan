@@ -59,7 +59,7 @@ def upload_file():
 
 
 
-        result = process_files(file_path, routers, scale, signal_freq)
+        result = process_files(file_path, routers, scale, signal_freq, objects)
 
         # 刪除上傳的檔案
         # os.remove(file_path)
@@ -72,7 +72,7 @@ def upload_file():
     <h1>Floorplan API</h1>
     '''
 
-def process_files(file, routers, scale=100, signal_freq='2.4'):
+def process_files(file, routers, scale=100, signal_freq='2.4', objects=[]):
     IMAGE_FILE = file
 
 
@@ -243,7 +243,9 @@ def process_files(file, routers, scale=100, signal_freq='2.4'):
 
     result = {
         "status": 'ok',
-        "heatmap": img_data
+        "heatmap": img_data,
+        "frequency": signal_freq,
+        "routers": objects
     }
     return result
 

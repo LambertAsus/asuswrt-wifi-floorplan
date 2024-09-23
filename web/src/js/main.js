@@ -7,7 +7,7 @@ import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
 const config = {
     scale: 1,
     signal_frequency: '2.4',
-}
+};
 
 const routerList = [
     {
@@ -24,7 +24,9 @@ const routerList = [
         range: '50 m²',
         wifi_version: 'WiFi6',
     }
-]
+];
+
+const resultViewDiv = document.getElementById('resultView');
 
 const routerDiv = document.getElementById('routers');
 routerList.forEach(router => {
@@ -40,6 +42,53 @@ routerList.forEach(router => {
                     </div>
                     <span class="badge bg-secondary rounded-pill">${router.wifi_version}</span>`;
     routerDiv.appendChild(li);
+});
+
+const resultCardsClickEvent = (e) => {
+    e.preventDefault();
+
+    const targetElement = e.currentTarget;
+    const meshId = targetElement.dataset.meshId;
+    if (targetElement.classList.contains('active')) {
+        targetElement.classList.remove('active');
+        const hoverView = targetElement.querySelector('.hover-veiw i');
+        hoverView.classList.add('bi-eye-fill');
+        hoverView.classList.remove('bi-eye-slash-fill');
+        resultViewMeshs.forEach(mesh => {
+            scene.remove(mesh);
+        });
+    } else {
+        resultCards.querySelectorAll('.card').forEach(card => {
+            card.classList.remove('active');
+            const hoverView = card.querySelector('.hover-veiw i');
+            hoverView.classList.add('bi-eye-fill');
+            hoverView.classList.remove('bi-eye-slash-fill');
+        });
+        targetElement.classList.add('active');
+        const hoverView = targetElement.querySelector('.hover-veiw i');
+        hoverView.classList.remove('bi-eye-fill');
+        hoverView.classList.add('bi-eye-slash-fill');
+        resultViewMeshs.forEach(mesh => {
+            if (mesh.uuid === meshId) {
+                scene.add(mesh);
+
+                circles.forEach(router => {
+                    scene.remove(router);
+                });
+                circles.length = 0;
+                mesh.routers.forEach(router => {
+                    createRouterMesh(router.router.name, router.editor_x, router.editor_y);
+                })
+            } else {
+                scene.remove(mesh);
+            }
+        });
+    }
+}
+
+const resultCards = document.getElementById('resultCards');
+resultCards.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', resultCardsClickEvent);
 });
 
 const offcanvasScrolling = document.getElementById('offcanvasScrolling')
@@ -222,12 +271,12 @@ renderer.setClearColor(0xf7f7f7, 1);
 const geometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight);
 const textureLoader = new THREE.TextureLoader();
 let backgroundMesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({color: 0xf7f7f7}));
+const resultViewMeshs = [];
 let overlayMesh;
 scene.add(backgroundMesh);
 
 // 圓形物件列表
 const circles = [];
-
 
 // 處理圖片上傳
 const fileInput = document.getElementById('fileInput');
@@ -236,7 +285,6 @@ fileInput.addEventListener('change', function (event) {
     const url = URL.createObjectURL(file);
 
     textureLoader.load(url, function (texture) {
-        console.log(texture)
         selectBackground.hide();
         const imageAspect = texture.image.width / texture.image.height;
         const canvasAspect = window.innerWidth / window.innerHeight;
@@ -330,30 +378,9 @@ function createLineEndpoint(start, end) {
     scene.add(endCircle);
 }
 
-function onDocumentMouseDown(event) {
-    mouseDown = true;
+const createRouterMesh = (name, x, y) => {
 
-    const mouse = new THREE.Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        -(event.clientY / window.innerHeight) * 2 + 1
-    );
-
-    const point = new THREE.Vector3(
-        (event.clientX - window.innerWidth / 2) / camera.zoom,
-        -(event.clientY - window.innerHeight / 2) / camera.zoom,
-        0
-    );
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-
-    const intersects = raycaster.intersectObjects(circles);
-    if (intersects.length > 0) {
-        // 如果点击到了圆形，选择该圆形
-        selectedCircle = intersects[0].object;
-    } else if (routerDiv.querySelector('li.active')) {
-        const selectedRouterName = routerDiv.querySelector('li.active').getAttribute('data-router-name');
-        const router = routerList.find(router => router.name === selectedRouterName);
+        const router = routerList.find(router => router.name === name);
 
         const hoverCircleGeometry = new THREE.CircleGeometry(22, 32);
         const hoverCircleMaterial = new THREE.MeshBasicMaterial({color: 0x6ea8fe});
@@ -380,8 +407,7 @@ function onDocumentMouseDown(event) {
         });
 
         circle.position.set(
-            (event.clientX - window.innerWidth / 2) / camera.zoom,
-            -(event.clientY - window.innerHeight / 2) / camera.zoom,
+            x, y,
             circleZ
         );
 
@@ -389,6 +415,32 @@ function onDocumentMouseDown(event) {
 
         circles.push(circle);
         scene.add(circle);
+}
+
+function onDocumentMouseDown(event) {
+    mouseDown = true;
+
+    const mouse = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+    );
+
+    const point = new THREE.Vector3(
+        (event.clientX - window.innerWidth / 2) / camera.zoom,
+        -(event.clientY - window.innerHeight / 2) / camera.zoom,
+        0
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(circles);
+    if (intersects.length > 0) {
+        // 如果点击到了圆形，选择该圆形
+        selectedCircle = intersects[0].object;
+    } else if (routerDiv.querySelector('li.active')) {
+        const selectedRouterName = routerDiv.querySelector('li.active').getAttribute('data-router-name');
+        createRouterMesh(selectedRouterName, point.x, point.y);
     } else {
 
         // 如果繪製牆壁啟用
@@ -474,7 +526,6 @@ function onDocumentMouseDown(event) {
                     selectedLine = line;
                     selectedLine.material.color.set(0x00ff00);
                     selectedEndpoint = null;
-                    console.log('111', selectedLine)
                     if (point.distanceTo(start) < lineWidth) {
                         selectedEndpoint = "start";
                     } else if (point.distanceTo(end) < lineWidth) {
@@ -567,7 +618,6 @@ function onDocumentMouseMove(event) {
     const circlesIntersects = raycaster.intersectObjects(circles);
     if (circlesIntersects.length > 0) {
         const intersectedCircle = circlesIntersects[0].object;
-        console.log(intersectedCircle)
 
         if (hoveredCircle !== intersectedCircle) {
             if (hoveredCircle) {
@@ -846,6 +896,8 @@ async function sendData() {
         y: (-circle.position.y + backgroundMesh.geometry.parameters.height / 2)
             * (backgroundMesh.imgHeight / backgroundMesh.geometry.parameters.height),
         router: circle.router,
+        editor_x: circle.position.x,
+        editor_y: circle.position.y,
     }));
 
     console.log('circles', circles[0].position.x, circles[0].position.y)
@@ -908,7 +960,27 @@ async function sendData() {
                         overlayMesh = new THREE.Mesh(geometry, material);
                         overlayMesh.position.set(0, 0, 10); // 确保在屏幕中央
 
+                        overlayMesh.routers = result.routers;
+
                         scene.add(overlayMesh);
+                        resultViewMeshs.push(overlayMesh);
+
+                        const card = document.createElement('div');
+                        card.classList = 'card justify-content-between active';
+                        card.setAttribute('data-mesh-id', overlayMesh.uuid);
+                        card.innerHTML = `
+                            <div><img src="${result.heatmap}" class="card-img-top"></div>
+                            <div class="info">${result.frequency}GHz</div>
+                            <div class="hover-veiw"><i class="bi bi-eye-slash-fill"></i></div>`;
+                        resultCards.querySelectorAll('.card').forEach(card => {
+                            card.classList.remove('active');
+                        });
+                        resultCards.append(card);
+                        card.addEventListener('click', resultCardsClickEvent);
+
+                        if(resultCards.querySelector('.card')) {
+                            resultViewDiv.classList.remove('d-none');
+                        }
                     });
 
                 }
@@ -925,4 +997,7 @@ document.getElementById('clearButton').addEventListener('click', () => {
     if (overlayMesh) {
         scene.remove(overlayMesh);
     }
+    resultViewMeshs.length = 0;
+    resultCards.innerHTML = '';
+    resultViewDiv.classList.add('d-none');
 })
